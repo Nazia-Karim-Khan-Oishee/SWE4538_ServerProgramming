@@ -7,10 +7,6 @@ const fs = require("fs");
 let users = []; // store the user info here
 const USER_DATA_FILE = path.join(__dirname, "../user_data.json");
 
-const MIN_PASSWORD_LENGTH = 6;
-
-const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/;
-
 try {
   const data = fs.readFileSync(USER_DATA_FILE);
   users = JSON.parse(data);
@@ -41,38 +37,44 @@ const getRegister = async (req, res) => {
 
 const postRegister = async (req, res, next) => {
   try {
-    if (
-      req.body.password.length < MIN_PASSWORD_LENGTH ||
-      !passwordRegex.test(req.body.password)
-    ) {
-      // console.error(
-      //   "Password must be at least 6 characters long and strong enough."
-      // );
-      // return res.redirect("/register");
+    const MIN_PASSWORD_LENGTH = 6;
 
-      const errorMessage =
-        "Password must be at least 6 characters long and strong enough.";
+    const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{6,}$/;
+
+    if (req.body.password) {
+      // Check if req.body.password is strong enough
+      if (
+        req.body.password.length < MIN_PASSWORD_LENGTH ||
+        !passwordRegex.test(req.body.password)
+      ) {
+        const errorMessage =
+          "Password must be at least 6 characters long and strong enough.";
+        console.error(errorMessage);
+        return res.status(400).json({ error: errorMessage });
+      }
+    } else {
+      // Check if req.body.password exists
+      const errorMessage = "Password must exist.";
       console.error(errorMessage);
       return res.status(400).json({ error: errorMessage });
     }
 
-    const hashedPassword = await bcrypt.hash(req.body.password, 10); // req.body.password ==> password should be exact match to register.html name=password,  10:how many time you want to generate hash. it's a standard default value
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
     users.push({
       id: Date.now().toString(),
       name: req.body.username,
       email: req.body.email,
       password: hashedPassword,
     });
-    // const newUser = { email, username, password };
-    // users.push(newUser);
 
     fs.writeFileSync(USER_DATA_FILE, JSON.stringify(users, null, 2));
     res.redirect("/login");
   } catch (err) {
     console.error(err);
-    res.redirect("/register");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 module.exports = {
   getLogin,
   getRegister,
